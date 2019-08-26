@@ -18,19 +18,33 @@ class ReAudio(object):
 
     """
     Arguemnts: file_name
-               Specify the name of file which contains records in format (timestamp,degree) and has a csv extention
+               Specify the name of file which contains records in format (group,timestamp,degree) and has a csv extention
     """
     def __init__(self,file_name):
+        # Setting name of the log file
         self.file_name = file_name
+
+        # Dictionary to store direction for each user
         self.Directions = {1:[],2:[],3:[],4:[]}
-        self.edge_list=list()
+
+        # Open the audio log file with three columns group, timestamp, degree
+        self.file = pd.read_csv(self.file_name,names=["group","timestamp","degree"])
+        print("-------------ReAudio Library----------")
+        print('Initializing.....')
+        print('   Loading file')
+        print('   Columns in File:',self.file.columns)
 
 
-
+    """
+    This function returns pandas dataframe for a particular group.
+    Argument: group
+          Speficy the name of group to retrieve its dataframe.
+    """
     def getGroupFrame(self,group):
-        self.file = pd.read_csv(self.file_name)
-        self.file.columns=['group','timestamp','degree']
-        temp_df = self.file.loc[self.file.group==group,:]
+        # Using pandas loc function to filter data
+        temp_df = self.file.loc[self.file["group"]==group,:]
+
+        # return the dataframe
         return temp_df
 
 
@@ -41,20 +55,14 @@ class ReAudio(object):
     Arguemnts: plot (Boolean)
               Setting this argument to True with plot all degrees found in the file.
     """
-    def getHighestFourDegrees(self,plot,group):
+    def getHighestFourDegrees(self,plot,group='group-1'):
         try:
             # Read the file
             self.file = pd.read_csv(self.file_name)
 
-            # If file is not in required format then break
-            if len(self.file.columns) != 3:
-                print('File does not have three columns. File must have three columns (group,timestamp,degree)')
-                return null
-
-            # Set the column names
-            self.file.columns=['group','timestamp','degree']
-
+            # Extract data for specified group
             temp_df = self.file.loc[self.file.group==group,:]
+
             # Count the frequency of each degree in the file
             degree_frequency = Counter(temp_df['degree'])
 
@@ -69,41 +77,38 @@ class ReAudio(object):
             # Sort the degrees on the basis of their counted frequency
             sorted_deg_freq = sorted(degree_frequency.items(),key=lambda x:x[1])
 
-
-
-
-
-
+            # Take six degree with higher frequencies
             highest_degrees = sorted_deg_freq[:-6]
 
 
             # Sort the order of highest degrees and return
             highest_degrees = sorted(highest_degrees,key=lambda x:x[0])
 
-            if len(high_four_degrees) == 4:
-
-
+            high_four_degrees = []
             # Get four highest degrees
 
             for item in highest_degrees:
 
+                # If the list is emtpy
                 if len(high_four_degrees)==0:
                     high_four_degrees.append(item[0])
                 else:
-                    if abs(item[0]-high_four_degrees[-1])%360 > 30:
+                    # Check whether degrees are not close to already added degree
+                    if abs(item[0]-high_four_degrees[-1])%360 > 10:
 
+                        # if not then add it to the list
                         high_four_degrees.append(item[0])
                     else:
+                        # If degree is close to already added degree then add the one with higher frequency
                         if item[1]>degree_frequency[high_four_degrees[-1]]:
                             high_four_degrees.remove(high_four_degrees[-1])
                             high_four_degrees.append(item[0])
                         else:
                             pass
 
+            # Return the four most occuring degrees
+            return high_four_degrees[-4:]
 
-
-            print(high_four_degrees[:4])
-            return high_four_degrees[:4]
         except Exception as e:
             print('Exception:',sys.exc_info())
 
@@ -121,7 +126,7 @@ class ReAudio(object):
     def assignUserLabel(self,group='group-1'):
         # Get four highly occuring direction of arrival
         highDegrees = self.getHighestFourDegrees(plot=False,group=group)
-        print(highDegrees)
+
 
         # Considering degrees in ascending order corresponds to user1 to user4
         users = np.array([item for item in highDegrees])
@@ -147,11 +152,12 @@ class ReAudio(object):
             # Return the user identifier correpsonds to degree (parameter)
             return ind[0]
 
+        # get dataframe for specified group
         temp_df = self.getGroupFrame(group)
 
         # Add one column to the pandas dataframe with name 'users' which contains corresponding user identifier
         temp_df.loc[:,'users'] = temp_df['degree'].map(assign_label)
-        return temp_df.loc[:,['timestamp','degree','users']]
+        return temp_df
 
 
 
@@ -164,7 +170,7 @@ class ReAudio(object):
     """
     def getSpeakingTime(self,plot,time='sec',group='group-1'):
 
-
+        # get dataframe for the specified group
         spk_df = self.assignUserLabel(group)
 
         # Count the frequency for each user
@@ -210,10 +216,11 @@ class ReAudio(object):
     """
     def generateEdgeFile(self,group):
 
-        # Check if this function called after calling assignUserLabel() function.
-        # if yes then access the users column and convert it into numpy array for further processing
 
+        # dataframe for specified group
         edge_file = self.assignUserLabel(group)
+
+        # Getting sequenc of speaking turn
         sequence = edge_file['users'].to_numpy()
 
         # Create a emplty data frame with column users and conti_frequency. Here, conti_frequency represents the continuous occurence of particular user.
@@ -265,7 +272,7 @@ class ReAudio(object):
             i = i + diff
 
         # We are considering speaking activtiy if there are 4 consecutive entries for one particular user
-        process_df = df.where(df.conti_frequency>4)
+        process_df = df.where(df.conti_frequency>0)
 
         # Deleting other users with less than 4 consecutive entries
         process_df.dropna(axis=0,how='any',inplace=True)
@@ -312,8 +319,7 @@ class ReAudio(object):
         # Close the file
         file.close()
 
-        # Print the message
-        print('Edge file is generate with name edges.txt')
+
         return edge_list
 
 
@@ -411,46 +417,73 @@ class ReAudio(object):
 
         # Show the network
         plt.show()
+    """
+    This function generate speaking time for specified time window.
 
+    """
     def generateWindowWiseSpeakingTime(self,window_size="30S",time='sec',group='group-1'):
+        # get group's dataframe
         df1=self.assignUserLabel(group)
+
+        # Setting timestamp as datetime
         df1['timestamp'] = pd.to_datetime(df1['timestamp'])
+
+        # Setting the index
         df1 = df1.set_index(pd.DatetimeIndex(df1['timestamp']))
 
-
-
+        # Taking the starting time
         cur_ts = df1.timestamp[0]
+
+        # Creating time delta from specified time window
         time_delta = pd.to_timedelta(window_size)
+
+        # Creating a dataframe with features
         final = pd.DataFrame(columns=['timestamp','u1_speak','u2_speak','u3_speak','u4_speak','speak_sequence'])
+
+        # loop to iterate for entire dataframe
         while cur_ts < df1.timestamp[df1.shape[0]-1]:
 
+            # Computing the end of timewindow
             next_ts = cur_ts + time_delta
 
+            # Getting data between two timestamps
             temp_speech_df = df1.between_time(datetime.datetime.time(cur_ts),datetime.datetime.time(next_ts),include_start=True,include_end=False)
 
+            # Generate features out of the data
             entry = self.extractFeatures(cur_ts,temp_speech_df,time)
-            #print(entry)
-            #final = final.append({'timestamp':entry['timestamp'],'u1_add':entry['u1_add'],'u1_del':entry['u1_del'],'u1_text':entry['u1_text'],'u2_add':entry['u2_add'],'u2_del':entry['u2_del'],'u2_text':entry['u2_text'],'u3_add':entry['u3_add'],'u3_del':entry['u3_del'],'u3_text':entry['u3_text'],'u4_add':entry['u4_add'],'u4_del':entry['u4_del'],'u4_text':entry['u4_text'],'u1_speak':entry['u1_speak'],'u2_speak':entry['u2_speak'],'u3_speak':entry['u3_speak'],'u4_speak':entry['u4_speak'],'speak_sequence':entry['speak_sequence']},ignore_index=True)
+
+            # Adding the entry to the dataframe
             final = final.append(entry,ignore_index=True)
 
+            # Moving starting timestamp to next time window
             cur_ts = next_ts
-        #print(final)
-        #final.to_csv('Final.csv',index=False)
+
         return final
 
     def extractFeatures(self,timestamp,speech_df,time):
+        # First user speaking time
         user1_speaking_time = 0
+
+        # Second user speaking time
         user2_speaking_time = 0
+
+        # Third user speaking time
         user3_speaking_time = 0
+
+        # Fourth user speaking time
         user4_speaking_time = 0
 
+        # String to store the speaking sequence
         speaking_sequence=""
 
+        # Get data for each user
         us1 = speech_df.loc[speech_df['users']==1,:]
         us2 = speech_df.loc[speech_df['users']==2,:]
         us3 = speech_df.loc[speech_df['users']==3,:]
         us4 = speech_df.loc[speech_df['users']==4,:]
         multiplier = 1.0
+
+        # Computing the timescale
         if time=='sec':
             multiplier = float(200/1000)
 
@@ -462,12 +495,14 @@ class ReAudio(object):
         elif time=='hour':
             multiplier = float(200/(60*60*1000))
 
+        # Computing the speaking time
         user1_speaking = us1.users.count()*multiplier
         user2_speaking = us2.users.count()*multiplier
         user3_speaking = us3.users.count()*multiplier
         user4_speaking = us4.users.count()*multiplier
 
+        # Speaking sequence
         speaking_sequence = speech_df['users'].tolist()
 
-
+        # Returning the entry
         return {'timestamp':timestamp,'u1_speak':user1_speaking,'u2_speak':user2_speaking,'u3_speak':user3_speaking,'u4_speak':user4_speaking,'speak_sequence':speaking_sequence}

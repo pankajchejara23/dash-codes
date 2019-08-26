@@ -81,7 +81,9 @@ sp_time = re.getSpeakingTime(plot=False,group='group-1')
 
 edge_list = re.generateEdgeFile('group-1')
 elements = generateElements(edge_list,sp_time)
-
+print("---------ELEMENTS----",elements)
+print("sp time:",sp_time)
+print("edge:",edge_list)
 figure_data1=[]
 final_df = re.generateWindowWiseSpeakingTime(window_size="30S",group='group-1')
 for i in range(4):
@@ -175,7 +177,7 @@ body = dbc.Container(
         ]),
         dbc.Row([
             html.H3("Group Dynamics"),
-
+            html.P(elements)
         ]),
         dbc.Row([
             cyto.Cytoscape(
@@ -310,7 +312,10 @@ def update_spk(group_value):
 
 @app.callback(Output('sna','elements'),[Input('group-selector','value')])
 def update_sna(group_value):
-    print("update sna called")
+    sp_time = re.getSpeakingTime(plot=False,group=group_value)
+    edge_list1 = re.generateEdgeFile(group_value)
+    elements1 = generateElements(edge_list,sp_time)
+    return elements1
 
 @app.callback(Output('speech_graph_time', 'figure'),
               [Input('window', 'value'),Input('user_selector', 'value'),Input('group-selector','value')])
