@@ -32,7 +32,7 @@ class ReAudio(object):
         print("-------------ReAudio Library----------")
         print('Initializing.....')
         print('   Loading file')
-        print('   Columns in File:',self.file.columns)
+
 
 
     """
@@ -58,10 +58,12 @@ class ReAudio(object):
     def getHighestFourDegrees(self,plot,group='group-1'):
         try:
             # Read the file
-            self.file = pd.read_csv(self.file_name)
 
+            selfdf = self.file.copy()
+            #print(type(selfdf))
+            #print(selfdf)
             # Extract data for specified group
-            temp_df = self.file.loc[self.file.group==group,:]
+            temp_df = selfdf.loc[selfdf['group']==group,:]
 
             # Count the frequency of each degree in the file
             degree_frequency = Counter(temp_df['degree'])
@@ -179,10 +181,10 @@ class ReAudio(object):
         # Create a dictionary for storing speaking time for each user and initialize it with zero
         user_speak_time = {1:0,2:0,3:0,4:0}
 
-        print('Group: ',group,'Speech_count:\n',speech_count)
+
         # Iterate for each user
         for i in range(4):
-            print("key:",str(i))
+
             # If time unit is sec then multiply the frequency with 200/1000. As each entry represent user speaking behavior on scale of 200 ms.
             # To convert it into second, we need to multiply the frequency count for specific user with 200/1000
             if time=='sec':
@@ -218,7 +220,7 @@ class ReAudio(object):
 
 
         # dataframe for specified group
-        edge_file = self.assignUserLabel(group)
+        edge_file = self.assignUserLabel(group=group)
 
         # Getting sequenc of speaking turn
         sequence = edge_file['users'].to_numpy()
@@ -268,8 +270,10 @@ class ReAudio(object):
             # Add continuous frequency of current user (sequence[i]) to the dataframe
             df = df.append({'users':sequence[i],'conti_frequency':count},ignore_index=True)
 
+
             # Move to next different element
             i = i + diff
+
 
         # We are considering speaking activtiy if there are 4 consecutive entries for one particular user
         process_df = df.where(df.conti_frequency>0)
@@ -305,7 +309,7 @@ class ReAudio(object):
 
                 if node1 != node2:
                     # Append the edge node1, node2 to the edge list
-                    self.edge_list.append((node1,node2))
+                    edge_list.append((node1,node2))
 
                     # Print the edge
                     #print("{},{}".format(node1,node2))
@@ -339,7 +343,7 @@ class ReAudio(object):
 
 
         # Get speaking time for each user
-        sp_beh = self.getSpeakingTime(False,group)
+        sp_beh = self.getSpeakingTime(plot=False,group=group)
 
         # Compute average speaking time
         sp_avg = sum(sp_beh.values())/float(len(sp_beh.values()))
@@ -386,7 +390,7 @@ class ReAudio(object):
         sizes=[]
 
         sp_total = sum(sp_beh.values())
-        print(type(sp_beh.values()))
+
         sp_std = statistics.stdev(sp_beh.values())
 
 
@@ -395,9 +399,9 @@ class ReAudio(object):
 
         # iterate for each node in the graph
         for node in G:
-            print(node,':',sp_beh[node])
+
             size = float(sp_beh[node]*10)/sp_total
-            print (size)
+
             sizes.append( 400 * (size+1))
             dev = float(sp_beh[node]-sp_total)/sp_std
             # Assign red color if speaking time is below average

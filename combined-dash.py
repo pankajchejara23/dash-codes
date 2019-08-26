@@ -82,8 +82,7 @@ sp_time = re.getSpeakingTime(plot=False,group='group-1')
 edge_list = re.generateEdgeFile('group-1')
 elements = generateElements(edge_list,sp_time)
 print("---------ELEMENTS----",elements)
-print("sp time:",sp_time)
-print("edge:",edge_list)
+
 figure_data1=[]
 final_df = re.generateWindowWiseSpeakingTime(window_size="30S",group='group-1')
 for i in range(4):
@@ -269,7 +268,7 @@ app.layout = html.Div([body])
 
 @app.callback(Output('doa','figure'),[Input('group-selector','value')])
 def update_doa(group_value):
-    print(org_df.columns)
+
     df = re.getGroupFrame(group_value)
     directions=  df['degree'].unique()
 
@@ -314,13 +313,45 @@ def update_spk(group_value):
 def update_sna(group_value):
     sp_time = re.getSpeakingTime(plot=False,group=group_value)
     edge_list1 = re.generateEdgeFile(group_value)
-    elements1 = generateElements(edge_list,sp_time)
-    return elements1
+    #elements1 = generateElements(edge_list,sp_time)
+    total_sp = sum(sp_time.values())
+    ele=[]
+    G = nx.Graph()
+    for edge in edge_list:
+
+    # Check if the current edge already exist or not
+        if G.has_edge(edge[0],edge[1]):
+
+            # Get the weight of that edge
+            w = G[edge[0]][edge[1]]['weight']
+
+            # Remove it from the graph
+            G.remove_edge(edge[0],edge[1])
+
+            # Add it again with updated weight
+            G.add_edge(edge[0],edge[1],weight=w+1)
+
+        else:
+
+            # If edge doesn't exist in the graph then add it with weight .5
+            G.add_edge(edge[0],edge[1],weight=1)
+    total_edges = len(edge_list)
+    for n in list(G):
+        user = 'User-'+str(n)
+        speak_ratio = 200*sp_time[n]/total_sp
+        t = {'id':n,'label':user,'width':speak_ratio}
+        ele.append({'data':t})
+    for e in G.edges:
+        t = {'source':e[0],'target':e[1],'weight':G[e[0]][e[1]]['weight']*(30/total_edges)}
+        ele.append({'data':t})
+
+    return ele
+#return str(elements1)
 
 @app.callback(Output('speech_graph_time', 'figure'),
               [Input('window', 'value'),Input('user_selector', 'value'),Input('group-selector','value')])
 def display_value(value,user_value,group_value):
-    print(user_value)
+
     time_window={0:'30S',1:'60S',2:'2T',3:'5T',4:'15T',5:'30T',6:'60T',7:'120T'}
     figure_data=[]
     time = 'sec'
@@ -347,4 +378,4 @@ def display_value(value,user_value,group_value):
 
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run_server(debug=False)
