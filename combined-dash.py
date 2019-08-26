@@ -85,8 +85,8 @@ final_df = analyzer.generateWindowWiseStats()
 # log analyzer code ends
 df = org_df.loc[org_df.group == 'group-1',:]
 re = ReAudio(file_name)
-log_file  = pd.read_csv('tobias_etherpad.csv',names=['timestamp','ip','action','oldlen','newlen','changeset','charbank','noadd','noremove'])
-ips = log_file.ip.unique()
+
+ips = analyzer.getAuthorIP()
 dropdown_ip = []
 for ip in ips:
     dropdown_ip.append({'label':ip,'value':ip})
@@ -124,9 +124,12 @@ body = dbc.Container(
     [   dbc.Row([
             dbc.Col([
                 html.H1("Etherpad Logs & Speech Analyzer"),
-                html.P("This web-app offers visualization of Log files collected from ReSpeaker and Etherpad Usage"+
-                ". It is developed using Python dash Framework and utilizes Bootstrap for styling of the page."),
-                html.P("Tallinn University")
+                html.P("This web-app offers visualization of data collected from ReSpeaker (attached with Rapsberry Pi) and Etherpad Usage"),
+                html.P("For processing audio data, we used Voice Activity detection (VAD) and Direction of Arrival (DoA) algorithms to detect the voice activity and it's direction of arrival."+
+                " For Etherpad, we developed a plugin which allowed us to track participants' activities. "+
+                "We mainly recorded the ip-address of the participant interacting with Etherpad along with the changes, he/she making in the pad"),
+                html.P("For development of this dashboard, we used Python dash Framework and utilized Bootstrap for styling of the page."),
+                html.P("**Tallinn University**")
             ])
         ]),
         html.H4("Select your group"),
@@ -488,4 +491,4 @@ def update_graphdel(value,ipaddr):
 
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run_server(debug=False)
