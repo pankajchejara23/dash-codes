@@ -1,19 +1,21 @@
-import dash
-import dash_core_components as dcc
-import dash_html_components as html
-from dash.dependencies import Input, Output
-import pandas as pd
-from collections import Counter
-import dash_bootstrap_components as dbc
-import dash_cytoscape as cyto
-import networkx as nx
+import dash                                     # import dash
+import dash_core_components as dcc              # import core components
+import dash_html_components as html             # import html components
+from dash.dependencies import Input, Output     # import package for interactivity
+import pandas as pd                             # import pandas
+from collections import Counter                 # import Counter for frequency counting
+import dash_bootstrap_components as dbc         # import bootstrap component of dash
+import dash_cytoscape as cyto                   # import dash_cytoscape for drawing network
+import networkx as nx                           # import networkx for processing graphs
 import base64
 import io
 import sys
 from ReAudio_group import ReAudio
-
+import json
+from etherLogAnalyzer import etherLogAnalyzer
 import plotly.graph_objs as go
 
+#
 user_selector=[]
 time_scale=0
 def generateElements(edge_list,sp_time):
@@ -55,7 +57,7 @@ app = dash.Dash(__name__,external_stylesheets=["/assets/bootstrap.css","/assets/
 file_name = ""
 
 error_flag = False
-if len(sys.argv)!=2:
+if len(sys.argv)!=3:
 
     print('Error: You have not specified the file name')
     print("Usage: python speech_analyzer.py csv-file-name")
@@ -67,6 +69,20 @@ else:
     except Exception as e:
         print('Error:',str(e))
         sys.exit
+## log analyzer code
+analyzer = etherLogAnalyzer(sys.argv[2])
+
+
+author_ips = analyzer.getAuthorIP()
+user_df = {}
+figure_data_add=[]
+figure_data_del=[]
+final_df = analyzer.generateWindowWiseStats()
+
+
+
+
+# log analyzer code ends
 df = org_df.loc[org_df.group == 'group-1',:]
 re = ReAudio(file_name)
 log_file  = pd.read_csv('tobias_etherpad.csv',names=['timestamp','ip','action','oldlen','newlen','changeset','charbank','noadd','noremove'])
@@ -260,6 +276,47 @@ body = dbc.Container(
 
             ])
 
+        ]),
+        html.Hr(),
+        html.Hr(),
+        html.H1("Log Summary"),
+
+
+        html.Hr(),
+        dbc.Row([
+            dbc.Col([
+                html.H3("Writing activity"),
+                dcc.Graph(id='log_graph_add',figure={}),
+            ],md=7),
+            dbc.Col([
+                html.H3("Updating activity"),
+                dcc.Graph(id='log_graph_del',figure={})
+            ],md=5)
+        ]),
+        html.Div(style={'padding': 40}),
+
+        dbc.Row([
+            dbc.Col([
+                dcc.Slider(
+                id='window2',
+                min=0,
+                max=10,
+                step=None,
+                marks = {
+                    0 : '30Sec',
+                    1 : '60Sec',
+                    2 : '2Min',
+                    3 : '5Min',
+                    4 : '15Min',
+                    5 : '30Min',
+                    6 : '60Min',
+                    7 : '2Hr'
+                },
+                value = 0
+
+                )
+            ],md=12)
+
         ])
 
     ])
@@ -375,7 +432,60 @@ def display_value(value,user_value,group_value):
 
     }
     return figure
+@app.callback(Output('log_graph_add', 'figure'),
+              [Input('window2', 'value'),Input('group-ips','value')])
+def update_graphadd(value,ipaddr):
+    print('IP length',len(ipaddr))
+    if len(ipaddr)!=4:
+        figure = {}
+        return figure
+    time_window={0:'30S',1:'60S',2:'2T',3:'5T',4:'15T',5:'30T',6:'60T',7:'120T'}
+    figure_data=[]
+    final_df = analyzer.generateWindowWiseStats(window_size=time_window[value],ips=ipaddr,combined=True)
+    for i in range(len(ips)):
+        if i >3:
+            continue
+        user_add='u%d_add'%(i+1)
+        figure_data.append({'x':final_df['timestamp'],'y':final_df[user_add],'type':'bar','name':ips[i]})
+    figure={
+        'data':figure_data,
+        'layout':go.Layout(
+            xaxis={'title': 'Timestamp'},
+            yaxis={'title': 'No. of characters added'},
+            margin={'l': 40, 'b': 40, 't': 10, 'r': 40},
+        )
+
+    }
+    return figure
+
+
+@app.callback(Output('log_graph_del', 'figure'),
+              [Input('window2', 'value'),Input('group-ips','value')])
+def update_graphdel(value,ipaddr):
+    if len(ipaddr)!=4:
+        figure = {}
+        return figure
+    time_window={0:'30S',1:'60S',2:'2T',3:'5T',4:'15T',5:'30T',6:'60T',7:'120T'}
+    figure_data=[]
+    final_df = analyzer.generateWindowWiseStats(window_size=time_window[value],ips=ipaddr,combined=True)
+    for i in range(len(ips)):
+        if i >3:
+            continue
+
+        user_del='u%d_del'%(i+1)
+        figure_data.append({'x':final_df['timestamp'],'y':final_df[user_del],'type':'bar','name':ips[i]})
+    figure={
+        'data':figure_data,
+        'layout':go.Layout(
+            xaxis={'title': 'Timestamp'},
+            yaxis={'title': 'No. of characters deleted'},
+            margin={'l': 40, 'b': 40, 't': 10, 'r': 40},
+        )
+
+    }
+    return figure
+
 
 
 if __name__ == '__main__':
-    app.run_server(debug=False)
+    app.run_server(debug=True)

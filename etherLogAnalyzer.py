@@ -91,8 +91,13 @@ class etherLogAnalyzer(object):
 
     """
 
-    def generateWindowWiseStats(self,window_size='30S'):
-        temp = self.file.copy()
+    def generateWindowWiseStats(self,window_size='30S',ips=[],combined=False):
+        if combined:
+            tempdf = self.file.copy()
+            temp = tempdf.loc[tempdf['ip'].isin(ips)]
+            print('Data size:',temp.shape[0])
+        else:
+            temp = self.file.copy()
         temp['addition'] = temp['newlen']-temp['oldlen']
         temp['deletion'] = temp['oldlen']-temp['newlen']
         mask = temp['addition']<0
