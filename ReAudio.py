@@ -4,6 +4,12 @@
       Date: 8/07/2019
 """
 
+"""
+      ReAudio: Library for generating interaction network and speech features from data captured using ReSpeaker 4 Mic version 1
+      Developer: Pankaj Chejara
+      Date: 8/07/2019
+"""
+
 # Import package
 import pandas as pd
 import numpy as np
@@ -60,13 +66,7 @@ class ReAudio(object):
             # Sort the degrees on the basis of their counted frequency
             sorted_deg_freq = sorted(degree_frequency.items(),key=lambda x:x[1])
 
-
-
-
-
-
             highest_degrees = sorted_deg_freq[-6:]
-
 
             # Sort the order of highest degrees and return
             highest_degrees = sorted(highest_degrees,key=lambda x:x[0])
@@ -74,7 +74,6 @@ class ReAudio(object):
             high_four_degrees = []
 
             # Get four highest degrees
-
             for item in highest_degrees:
 
                 if len(high_four_degrees)==0:
@@ -89,15 +88,9 @@ class ReAudio(object):
                             high_four_degrees.append(item[0])
                         else:
                             pass
-
-
-
-
             return high_four_degrees
         except Exception as e:
             print('Exception:',sys.exc_info())
-
-
 
 
     """
@@ -151,8 +144,9 @@ class ReAudio(object):
     """
     def getSpeakingTime(self,plot,time='sec'):
 
-
+        #if 'users' not in self.file.columns:
         self.assignUserLabel()
+
 
         # Count the frequency for each user
         speech_count = self.file.groupby('users').count()
@@ -198,9 +192,13 @@ class ReAudio(object):
 
         # Check if this function called after calling assignUserLabel() function.
         # if yes then access the users column and convert it into numpy array for further processing
+        if 'users' in self.file.columns:
+            sequence = self.file['users'].to_numpy()
 
-        self.assignUserLabel()
-        sequence = self.file['users'].to_numpy()
+        # if this function called without calling assignUserLabel() function.
+        else:
+            self.assignUserLabel()
+            sequence = self.file['users'].to_numpy()
 
         # Create a emplty data frame with column users and conti_frequency. Here, conti_frequency represents the continuous occurence of particular user.
         # For instance, if a user speaks then there will be many entries for that particular user because one entry recorded for every 200 ms.
@@ -245,7 +243,8 @@ class ReAudio(object):
 
 
             # Add continuous frequency of current user (sequence[i]) to the dataframe
-            df = df.append({'users':sequence[i],'conti_frequency':count},ignore_index=True)
+            record = {'users':sequence[i],'conti_frequency':count}
+            df = pd.concat([df, pd.DataFrame([record])],ignore_index=True)
 
             # Move to next different element
             i = i + diff
@@ -282,15 +281,11 @@ class ReAudio(object):
                 # Set the current element to node2
                 node2=processed_sequence[i]
 
-                if node1 != node2:
-                    # Append the edge node1, node2 to the edge list
-                    self.edge_list.append((node1,node2))
+                # Append the edge node1, node2 to the edge list
+                self.edge_list.append((node1,node2))
 
-                    # Print the edge
-                    #print("{},{}".format(node1,node2))
-
-                    # Write the edge in the file
-                    file.write("{},{}\n".format(node1,node2))
+                # Write the edge in the file
+                file.write("{},{}\n".format(node1,node2))
 
                 # Set the node1 as node2
                 node1=node2
@@ -311,11 +306,10 @@ class ReAudio(object):
                  Above average speaker: green
 
     """
-    def drawNetwork(self,edge_list=None):
+    def drawNetwork(self,edge_list=None,labels={1:'user-1',2:'user-2',3:'user-3',4:'user-4'}):
 
         # Generate the edge edge_list
         self.generateEdgeFile()
-
 
         # Get speaking time for each user
         sp_beh = self.getSpeakingTime(False)
@@ -325,10 +319,6 @@ class ReAudio(object):
 
         # Create an empty graph using networkx library
         G = nx.Graph()
-
-
-
-
 
             # Iterate over edge list
         for edge in self.edge_list:
@@ -343,12 +333,11 @@ class ReAudio(object):
                 G.remove_edge(edge[0],edge[1])
 
                 # Add it again with updated weight
-                G.add_edge(edge[0],edge[1],weight=w+.15)
+                G.add_edge(edge[0],edge[1],weight=w+.35)
 
             else:
-
                 # If edge doesn't exist in the graph then add it with weight .5
-                G.add_edge(edge[0],edge[1],weight=.5)
+                G.add_edge(edge[0],edge[1],weight=.75)
 
         # Layout for showing the network
         pos = nx.spring_layout(G)
@@ -365,62 +354,47 @@ class ReAudio(object):
         sizes=[]
 
         sp_total = sum(sp_beh.values())
-        print(type(sp_beh.values()))
         sp_std = statistics.stdev(sp_beh.values())
-
-
-
-
 
         # iterate for each node in the graph
         for node in G:
-            print(node,':',sp_beh[node])
             size = float(sp_beh[node]*10)/sp_total
-            print (size)
             sizes.append( 400 * (size+1))
-            dev = float(sp_beh[node]-sp_total)/sp_std
+            dev = float(sp_beh[node]-sp_avg)/sp_std
+            print(dev)
             # Assign red color if speaking time is below average
             if dev <0:
                 color_map.append('red')
             # Assign plum color if speaking time is near average
-            elif dev<1 and dev>-1:
-                color_map.append('plum')
+            elif dev<.5 and dev>0:
+                color_map.append('green')
 
             # Assign green for above average
             else:
-                color_map.append('lawngreen')
+                color_map.append('plum')
 
-        labels = {1:'Adolfo',2:'Pankaj',3:'Reet',4:'Tobias'}
         # Draw the network
-        nx.draw(G, pos,node_size = sizes,node_color=color_map,  edges=edges,width=weights,labels=labels,with_labels=True)
+        nx.draw_networkx_nodes(G,pos,node_size = sizes,node_color=color_map)
+        nx.draw_networkx_edges(G,pos,width=weights)
+        nx.draw_networkx_labels(G,pos)
 
         # Show the network
         plt.show()
 
-    def generateWindowWiseSpeakingTime(self,window_size="30S",time='sec'):
+
+    def generateWindowWiseSpeakingTime(self,window_size="30s",time='sec'):
         df1=self.file.copy()
         df1['timestamp'] = pd.to_datetime(df1['timestamp'])
         df1 = df1.set_index(pd.DatetimeIndex(df1['timestamp']))
-
-
-
         cur_ts = df1.timestamp[0]
         time_delta = pd.to_timedelta(window_size)
         final = pd.DataFrame(columns=['timestamp','u1_speak','u2_speak','u3_speak','u4_speak','speak_sequence'])
         while cur_ts < df1.timestamp[df1.shape[0]-1]:
-
             next_ts = cur_ts + time_delta
-
-            temp_speech_df = df1.between_time(datetime.datetime.time(cur_ts),datetime.datetime.time(next_ts),include_start=True,include_end=False)
-
+            temp_speech_df = df1.between_time(datetime.datetime.time(cur_ts),datetime.datetime.time(next_ts),inclusive='left')
             entry = self.extractFeatures(cur_ts,temp_speech_df,time)
-            #print(entry)
-            #final = final.append({'timestamp':entry['timestamp'],'u1_add':entry['u1_add'],'u1_del':entry['u1_del'],'u1_text':entry['u1_text'],'u2_add':entry['u2_add'],'u2_del':entry['u2_del'],'u2_text':entry['u2_text'],'u3_add':entry['u3_add'],'u3_del':entry['u3_del'],'u3_text':entry['u3_text'],'u4_add':entry['u4_add'],'u4_del':entry['u4_del'],'u4_text':entry['u4_text'],'u1_speak':entry['u1_speak'],'u2_speak':entry['u2_speak'],'u3_speak':entry['u3_speak'],'u4_speak':entry['u4_speak'],'speak_sequence':entry['speak_sequence']},ignore_index=True)
-            final = final.append(entry,ignore_index=True)
-
+            final = pd.concat([final, pd.DataFrame([entry])],ignore_index=True)
             cur_ts = next_ts
-        #print(final)
-        #final.to_csv('Final.csv',index=False)
         return final
 
     def extractFeatures(self,timestamp,speech_df,time):
@@ -428,9 +402,7 @@ class ReAudio(object):
         user2_speaking_time = 0
         user3_speaking_time = 0
         user4_speaking_time = 0
-
         speaking_sequence=""
-
         us1 = speech_df.loc[speech_df['users']==1,:]
         us2 = speech_df.loc[speech_df['users']==2,:]
         us3 = speech_df.loc[speech_df['users']==3,:]
@@ -451,8 +423,5 @@ class ReAudio(object):
         user2_speaking = us2.users.count()*multiplier
         user3_speaking = us3.users.count()*multiplier
         user4_speaking = us4.users.count()*multiplier
-
         speaking_sequence = speech_df['users'].tolist()
-
-
         return {'timestamp':timestamp,'u1_speak':user1_speaking,'u2_speak':user2_speaking,'u3_speak':user3_speaking,'u4_speak':user4_speaking,'speak_sequence':speaking_sequence}

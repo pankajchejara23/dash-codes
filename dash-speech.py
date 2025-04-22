@@ -11,18 +11,15 @@ import base64
 import io
 import sys
 from ReAudio import ReAudio
-
 import plotly.graph_objs as go
 
 user_selector=[]
 time_scale=0
 def generateElements(edge_list,sp_time):
-
     total_sp = sum(sp_time.values())
     ele=[]
     G = nx.Graph()
     for edge in edge_list:
-
     # Check if the current edge already exist or not
         if G.has_edge(edge[0],edge[1]):
 
@@ -34,7 +31,6 @@ def generateElements(edge_list,sp_time):
 
             # Add it again with updated weight
             G.add_edge(edge[0],edge[1],weight=w+1)
-
         else:
 
             # If edge doesn't exist in the graph then add it with weight .5
@@ -56,9 +52,8 @@ file_name = ""
 
 error_flag = False
 if len(sys.argv)!=2:
-
     print('Error: You have not specified the file name')
-    print("Usage: python speech_analyzer.py csv-file-name")
+    print("Usage: python dash-speech.py csv-file-name")
     sys.exit()
 else:
     file_name = sys.argv[1]
@@ -67,16 +62,17 @@ else:
     except Exception as e:
         print('Error:',str(e))
         sys.exit()
+
+# Get speaking features and edge file
 re = ReAudio(file_name)
-
-
 sp_time = re.getSpeakingTime(plot=False)
-
 re.generateEdgeFile()
 elements = generateElements(re.edge_list,sp_time)
 
 figure_data1=[]
-final_df = re.generateWindowWiseSpeakingTime(window_size="30S")
+final_df = re.generateWindowWiseSpeakingTime(window_size="30s")
+
+# Prepared data for plotting
 for i in range(4):
     user='u%d_speak'%(i+1)
     user_label = 'User-%d'%(i+1)
@@ -84,18 +80,16 @@ for i in range(4):
 
 
 dfreq = Counter(df['direction'])
-
 directions=  df['direction'].unique()
-
 freq = []
 for dir in directions:
     c = df.loc[df['direction']==dir,:].shape[0]
-
     freq.append(c)
-
 sp_user = [user for user in sp_time.keys()]
 sp_duration = [sp for sp in sp_time.values()]
 
+
+## HTML components
 body = dbc.Container(
     [   dbc.Row([
             dbc.Col([
@@ -103,12 +97,8 @@ body = dbc.Container(
                 html.P("This web-app offers visualization of Log files collected from ReSpeaker and Etherpad Usage"+
                 ". It is developed using Python Dash Framework and utilizes Bootstrap for styling the page."),
                 html.P("Tallinn University")
-
-
             ])
         ]),
-
-
         html.Hr(),
         dbc.Row([
             dbc.Col([
@@ -146,11 +136,7 @@ body = dbc.Container(
                         xaxis={'title': 'User'},
                         yaxis={'title': 'Speaking Time (sec.)'},
                         margin={'l': 40, 'b': 40, 't': 10, 'r': 40},
-
-
-
                     )
-
                 })
             ],md=5),
             dbc.Col([
@@ -158,11 +144,9 @@ body = dbc.Container(
                 html.P("First of all, DoA distribution is computed (shown in above figure). From the distribution, frequent occuring directions are retrieved. Then these directions are processed to filter out a direction if it is close to another direction. Out of these, four directions are then extracted and assigned to users in clockwise."),
                 html.P("Additionally, it also assume that speaker does not move while speaking.")
             ])
-
         ]),
         dbc.Row([
             html.H3("Group Dynamics"),
-
         ]),
         dbc.Row([
             cyto.Cytoscape(
@@ -179,18 +163,14 @@ body = dbc.Container(
                             'label':'data(label)',
                             'width':'data(width)',
                             'height':'data(width)'
-
                         }
                     },
                     {
                         'selector': '[weight]',
                         'style':{
                             'width':'data(weight)'
-
                         }
-
                     }
-
                 ]
             )
 
@@ -219,7 +199,6 @@ body = dbc.Container(
                         yaxis={'title': 'Speaking Time(Sec)'},
                         margin={'l': 40, 'b': 40, 't': 10, 'r': 40},
                     )
-
                 })
                 ],md=10)
         ]),
@@ -241,23 +220,19 @@ body = dbc.Container(
                     7 : '2Hr'
                 },
                 value = 0
-
                 )
-
             ])
-
         ])
-
     ])
 
 app.layout = html.Div([body])
 
-
+## Event handling
 @app.callback(Output('speech_graph_time', 'figure'),
               [Input('window', 'value'),Input('user_selector', 'value')])
 def display_value(value,user_value):
     print(user_value)
-    time_window={0:'30S',1:'60S',2:'2T',3:'5T',4:'15T',5:'30T',6:'60T',7:'120T'}
+    time_window={0:'30s',1:'60s',2:'2T',3:'5T',4:'15T',5:'30T',6:'60T',7:'120T'}
     figure_data=[]
     time = 'sec'
     if value > 0 and value < 6:
@@ -283,4 +258,5 @@ def display_value(value,user_value):
 
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    print('Running server')
+    app.run(debug=False)
