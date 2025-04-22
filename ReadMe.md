@@ -22,12 +22,12 @@ An interactive Dash application for visualizing directional speech data from ReS
 
 2. Create and activate virtual environment (recommended):
     ```sh
-        python -m venv venv
-        source venv/bin/activate  # Linux/Mac
+    python -m venv venv
+    source venv/bin/activate  # Linux/Mac
     ```
 3. Install dependencies:
     ```sh
-        pip install -r requirements.txt
+    pip install -r requirements.txt
     ```
 ## 🚀 Usage
 1. Go to the `code` sub-directory
