@@ -30,11 +30,14 @@ An interactive Dash application for visualizing directional speech data from ReS
         pip install -r requirements.txt
     ```
 ## 🚀 Usage
-
-Run the application with default demo data:
-```sh
-python dash-speech.py ./data/demo.csv
-```
+1. Go to the `code` sub-directory
+    ```sh
+    cd code
+    ```
+2. Run the application with default demo data:
+    ```sh
+    python dash-speech.py ../data/demo.csv
+    ```
 
 ## 📊 Data Format
 
