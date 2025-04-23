@@ -17,7 +17,7 @@ An interactive Dash application for visualizing directional speech data from ReS
 ### Setup
 1. Clone the repository:
    ```sh
-   git clone https://github.com/yourusername/speech-analyzer.git
+   git clone https://github.com/pankajchejara23/dash-codes.git
    cd speech-analyzer
 
 2. Create and activate virtual environment (recommended):
